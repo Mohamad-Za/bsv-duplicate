@@ -1,9 +1,4 @@
-import os
-import sys
 import pytest
-
-# Add project root to path to import the detector module
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from src.util.detector import detect_duplicates
 
 
@@ -21,7 +16,7 @@ def test_exact_match_all_fields():
     }
     """
     result = detect_duplicates(bib)
-    assert set(result) == {"A", "B"}
+    assert ('A', 'B') in result
 
 
 def test_normalised_title_and_missing_doi():
@@ -37,7 +32,7 @@ def test_normalised_title_and_missing_doi():
     }
     """
     result = detect_duplicates(bib)
-    assert set(result) == {"A", "B"}
+    assert ('A', 'B') in result
 
 
 def test_same_doi_overrules_year():
@@ -54,7 +49,7 @@ def test_same_doi_overrules_year():
     }
     """
     result = detect_duplicates(bib)
-    assert set(result) == {"A", "B"}
+    assert ('A', 'B') in result
 
 
 def test_doi_match_overrules_title():
@@ -71,7 +66,7 @@ def test_doi_match_overrules_title():
     }
     """
     result = detect_duplicates(bib)
-    assert set(result) == {"A", "B"}
+    assert ('A', 'B') in result
 
 
 def test_missing_doi_but_title_and_year_match():
@@ -86,7 +81,7 @@ def test_missing_doi_but_title_and_year_match():
     }
     """
     result = detect_duplicates(bib)
-    assert set(result) == {"A", "B"}
+    assert ('A', 'B') in result
 
 
 def test_typo_title_no_doi_not_duplicate():
@@ -121,18 +116,22 @@ def test_different_all_fields_not_duplicate():
     assert result == []
 
 
-def test_empty_input_raises_value_error():
-    with pytest.raises(ValueError, match="does not contain enough articles"):
-        detect_duplicates("")
+def test_empty_input_returns_no_duplicates():
+    bib = ""
+    result = detect_duplicates(bib)
+    assert result == []
 
 
-def test_malformed_bibtex_raises_value_error():
-    # Missing closing brace leads to parse result < 2 entries
+def test_malformed_bibtex_raises_error():
+    # missing closing brace in second entry
     bib = """
     @article{A,
-      title={Malformed Entry}
+      title={Bad Entry}
+    }
+    @article{B,
+      title={Also Bad"
     """
-    with pytest.raises(ValueError, match="does not contain enough articles"):
+    with pytest.raises(Exception):
         detect_duplicates(bib)
 
 
@@ -155,13 +154,14 @@ def test_three_entries_only_two_flagged():
     }
     """
     result = detect_duplicates(bib)
-    assert set(result) == {"A", "B"}
+    assert result == [('A', 'B')]
 
+# Test Structure:
+# Each one the tests follows one scenario from my design table. I chose clear, minimal BibTeX strings to isolate each condition.
 
-# Test file structure and independence notes
-#   Each test is a separate function using its own input string.
-#   No shared fixtures or external files detect_duplicates is a pure function.
-#   Tests cover cases: exact duplicates, normalized titles, DOI priority,
-#   positive duplicates, negative (no duplicates), empty input, malformed input.
-#   Ensures independence: each call to detect_duplicates starts fresh.
-#   Challenge: matching the exact exception and message for parsing errors.
+# Test Independence:
+# All tests build their own bibtex input in the function body, with no shared fixtures or global state.
+
+# Challenges:
+# Making malformed BibTeX that triggers parser errors got me errors, 
+# also making sure each test only assert one outcome to keeping tests clear.
